@@ -1,0 +1,122 @@
+# Aria Chen 23618522
+#!/bin/bash
+
+
+gdp_happiness_file='gdp-vs-happiness.tsv'
+homicide_rate_file='homicide-rate-unodc.tsv'
+life_vs_expectancy='life-satisfaction-vs-life-expectancy.tsv'
+
+# debug logger
+logger() {
+    # echo $1
+    return 0
+}
+
+clean_data() {
+    local file=$1
+    local search1=$(awk -F'\t' 'NR==1 && /GDP/ {print 1} NR==1 && !/GDP/ {print 0}' $file)
+    local search2=$(awk -F'\t' 'NR==1 && /Homicide/ {print 1} NR==1 && !/Homicide/ {print 0}' $file)
+    local search3=$(awk -F'\t' 'NR==1 && /Life/ {print 1} NR==1 && !/Life/ {print 0}' $file)
+    local field_count=$(awk -F'\t' 'NR==1 {print NF}' $file)
+    local expected_fields=7
+    local remove_continent=1
+    local tmpfile="tmp.txt"
+    local is_gdp=0
+
+    # set filename
+    if [ $search1 == 1 ]; then
+        logger "File $file contains 'GDP' in the first line."
+        gdp_happiness_file=$file
+        is_gdp=1
+
+    elif [ $search2 == 1 ]; then
+        logger "File $file contain 'Homicide' in the first line."
+        homicide_rate_file=$file
+        remove_continent=0
+        expected_fields=4
+
+    elif [ $search3 == 1 ]; then
+        logger "File $file contain 'Life' in the first line."
+        life_vs_expectancy=$file
+    fi
+
+    # Check TSV format
+    if [ ! $expected_fields = ${field_count} ]; then
+        logger "File $file contain ${field_count} fields, expected: ${expected_fields}, not in tsv format"
+        return 1;
+    else
+        logger "File $file contain ${field_count} as expected, is in tsv format"
+    fi
+
+    # Remvoe Continent field
+    if [ $remove_continent == 1 ]; then
+        logger "Remove 'Continent' fileld in $file"
+        awk -F'\t' '{print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6}' $file > $tmpfile
+        cat $tmpfile > $file
+        rm "$tmpfile"
+    fi
+
+    # Remove rows that 'Code' is empty
+    awk -F'\t' '$2 ~ /^\s*$/ {next} 1' $file > $tmpfile
+    cat $tmpfile > $file
+    rm $tmpfile
+
+    # Remove year < 2011 or year > 2021
+    awk -F'\t' 'NR==1 || ($3 >= 2011 && $3 <= 2021)' $file > $tmpfile
+    cat $tmpfile > $file
+    rm $tmpfile
+
+    # Add key column
+    if [ $is_gdp == 1 ]; then
+        awk -F'\t' '{print $1"_"$2"_"$3"\t"$1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6}' $file > $tmpfile
+    else
+        awk -F'\t' '{print $1"_"$2"_"$3"\t"$4"\t"$5"\t"$6}' $file > $tmpfile
+    fi
+    cat $tmpfile > $file
+    rm "$tmpfile"
+
+    return 0
+}
+
+
+sort_files() {
+    local file=$1
+    local tmpfile='tmp_sorted.tsv'
+    head -n 1 $file > $tmpfile
+    tail -n +2 $file | sort -k1,1 -t$'\t' >> $tmpfile
+    cat $tmpfile > $file
+    rm $tmpfile
+}
+
+
+# Main script
+for file in "$@"; do
+    cp $file "$file.tmp"
+    clean_data "$file.tmp"
+
+    # clean_data "$file"
+    logger ''
+    logger ''
+done
+
+sort_files $gdp_happiness_file
+sort_files $life_vs_expectancy
+sort_files $homicide_rate_file
+
+tmp_join1='tmp_join1.tsv'
+tmp_join2='tmp_join2.tsv'
+tmp_join3='tmp_join3.tsv'
+
+
+join -t $'\t' $gdp_happiness_file $life_vs_expectancy > $tmp_join1
+join -t $'\t' $tmp_join1 $homicide_rate_file > $tmp_join2
+awk -F'\t' '{print $2"\t"$3"\t"$4"\t"$6"\t"$7"\t"$11"\t"$8"\t"$5}' $tmp_join2 > $tmp_join3
+cat $tmp_join3
+
+rm $tmp_join1
+rm $tmp_join2
+rm $tmp_join3
+
+rm $gdp_happiness_file
+rm $life_vs_expectancy
+rm $homicide_rate_file
