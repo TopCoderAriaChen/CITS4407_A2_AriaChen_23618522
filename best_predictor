@@ -1,5 +1,14 @@
-# Aria Chen 23618522
 #!/bin/bash
+
+# Author: Aria Chen 
+# Student ID: 23618522
+
+# Description: This script identifies the strongest predictor of life satisfaction (Cantril ladder score)
+# from available socio-economic and demographic variables (GDP per capita, Population, Homicide Rate, and Life Expectancy).
+# It reads the cleaned data output from the cantril_data_cleaning script and computes Pearson correlations
+# for each predictor. The script determines the mean correlation for each and identifies the variable with the
+# strongest absolute correlation as the best predictor. The script handles data carefully to ensure at least three
+# valid data points per country for accurate statistical analysis.
 
 file=$1
 tmpfile1='tmp1.tsv'
