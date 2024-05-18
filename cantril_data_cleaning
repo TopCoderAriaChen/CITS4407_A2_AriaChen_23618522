@@ -10,6 +10,7 @@
 # within the years 2011 to 2021, discards rows without country codes, and excludes the sparsely populated 'Continent' column.
 # The final output is directed to stdout, formatted for subsequent analysis.
 
+
 gdp_happiness_file='gdp-vs-happiness.tsv'
 homicide_rate_file='homicide-rate-unodc.tsv'
 life_vs_expectancy='life-satisfaction-vs-life-expectancy.tsv'
@@ -22,9 +23,17 @@ logger() {
 
 clean_data() {
     local file=$1
+
+    # Search GDP at first line
     local search1=$(awk -F'\t' 'NR==1 && /GDP/ {print 1} NR==1 && !/GDP/ {print 0}' $file)
+
+    # Search Homicide at first line
     local search2=$(awk -F'\t' 'NR==1 && /Homicide/ {print 1} NR==1 && !/Homicide/ {print 0}' $file)
+
+    # Search Life at first line
     local search3=$(awk -F'\t' 'NR==1 && /Life/ {print 1} NR==1 && !/Life/ {print 0}' $file)
+
+    # Number of fields at header
     local field_count=$(awk -F'\t' 'NR==1 {print NF}' $file)
     local expected_fields=7
     local remove_continent=1
@@ -90,8 +99,9 @@ clean_data() {
     return 0
 }
 
-# Sort the data by the key column
+
 sort_files() {
+    # sort file by first column
     local file=$1
     local tmpfile='tmp_sorted.tsv'
     head -n 1 $file > $tmpfile
@@ -103,14 +113,17 @@ sort_files() {
 
 # Main script
 for file in "$@"; do
+    # copy original file to tmp file
     cp $file "$file.tmp"
-    clean_data "$file.tmp"
 
-    # clean_data "$file"
+    # clean data
+    clean_data "$file.tmp"
     logger ''
     logger ''
 done
 
+
+# sort files
 sort_files $gdp_happiness_file
 sort_files $life_vs_expectancy
 sort_files $homicide_rate_file
@@ -119,16 +132,22 @@ tmp_join1='tmp_join1.tsv'
 tmp_join2='tmp_join2.tsv'
 tmp_join3='tmp_join3.tsv'
 
-
+# join gdp and life data
 join -t $'\t' $gdp_happiness_file $life_vs_expectancy > $tmp_join1
+
+# join homicide data
 join -t $'\t' $tmp_join1 $homicide_rate_file > $tmp_join2
 awk -F'\t' '{print $2"\t"$3"\t"$4"\t"$6"\t"$7"\t"$11"\t"$8"\t"$5}' $tmp_join2 > $tmp_join3
 cat $tmp_join3
 
+
+# remove tmp files
 rm $tmp_join1
 rm $tmp_join2
 rm $tmp_join3
 
+
+# remove tmp files
 rm $gdp_happiness_file
 rm $life_vs_expectancy
 rm $homicide_rate_file
