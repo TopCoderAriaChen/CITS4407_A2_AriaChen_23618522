@@ -1,6 +1,14 @@
-# Aria Chen 23618522
 #!/bin/bash
 
+# Author: Aria Chen 
+# Student ID: 23618522
+
+# Description: This script is responsible for cleaning and preparing the dataset for analysis.
+# It processes three TSV files containing data related to GDP, homicide rates, and life satisfaction metrics.
+# The script verifies the data format, removes irrelevant data, normalizes data structures, and ensures data is
+# tab-separated and adheres to expected formats. It specifically filters the data by removing entries not
+# within the years 2011 to 2021, discards rows without country codes, and excludes the sparsely populated 'Continent' column.
+# The final output is directed to stdout, formatted for subsequent analysis.
 
 gdp_happiness_file='gdp-vs-happiness.tsv'
 homicide_rate_file='homicide-rate-unodc.tsv'
@@ -42,11 +50,15 @@ clean_data() {
 
     # Check TSV format
     if [ ! $expected_fields = ${field_count} ]; then
-        logger "File $file contain ${field_count} fields, expected: ${expected_fields}, not in tsv format"
+        echo "File $file contain ${field_count} fields, expected: ${expected_fields}, not in tsv format" >&2
         return 1;
     else
         logger "File $file contain ${field_count} as expected, is in tsv format"
     fi
+
+    # Report any lines that do not have the same number of cells
+    awk -F'\t' "NF!=${field_count} {printf \"line %d have %d cells\n\", NR,NF }" $file >&2
+
 
     # Remvoe Continent field
     if [ $remove_continent == 1 ]; then
@@ -78,7 +90,7 @@ clean_data() {
     return 0
 }
 
-
+# Sort the data by the key column
 sort_files() {
     local file=$1
     local tmpfile='tmp_sorted.tsv'
