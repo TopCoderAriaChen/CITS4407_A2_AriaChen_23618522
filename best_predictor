@@ -10,10 +10,13 @@
 # strongest absolute correlation as the best predictor. The script handles data carefully to ensure at least three
 # valid data points per country for accurate statistical analysis.
 
+
 file=$1
 tmpfile1='tmp1.tsv'
 corrfile='corr.tsv'
 
+
+# remove tmp files
 if test -f $tmpfile1 ; then
     rm $tmpfile1
 fi
@@ -23,8 +26,6 @@ if test -f $corrfile ; then
 fi
 
 
-
-
 # for debug
 logger() {
     # echo $1
@@ -32,14 +33,16 @@ logger() {
 }
 
 
-
 # Calculate the correlation between two columns
 cal_corr_col() {
     local col1=$1
     local col2=$2
+
+    # Get the mean value of the columns
     local avg1=$(awk -F '\t' "{sum += \$${col1}; count++;} END {meanx = sum/count; print meanx}" $tmpfile1)
     local avg2=$(awk -F '\t' "{sum += \$${col2}; count++;} END {meanx = sum/count; print meanx}" $tmpfile1)
 
+    # Calculate correlation score
     awk -F '\t' "{
         dx = \$${col1} - ${avg1};
         dy = \$${col2} - ${avg2};
@@ -56,10 +59,13 @@ cal_corr_col() {
 
 # Calculate the correlation between each variable and score
 cal_corr() {
+    # argument: column1 column2
     corr_homicide_rate=$(cal_corr_col 8 6)
     corr_gdp=$(cal_corr_col 8 4)
     corr_population=$(cal_corr_col 8 5)
     corr_life_exp=$(cal_corr_col 8 7)
+
+    # print result
     echo -e "${corr_homicide_rate}\t${corr_gdp}\t${corr_population}\t${corr_life_exp}" >> $corrfile
 }
 
@@ -69,12 +75,18 @@ unique_code=$(awk -F$'\t' '!seen[$2]++ {print $2}' $file)
 for code in $unique_code;
 do
     logger "calculating $code"
+
+    # Filter the rows of the specified country and remove the rows with empty score
     awk -F$'\t' "(\$2 == \"${code}\")" $file | awk -F'\t' '$8 ~ /^\s*$/ {next} 1' > $tmpfile1
+
+    # Get the number of data for this country
     line_count=$(awk -F'\t' 'END {print NR}' $tmpfile1)
     if [ $line_count -lt 3 ]; then
         logger ''
         continue
     fi
+
+    # Calculate correlation
     cal_corr
     logger ''
     logger ''
@@ -101,7 +113,7 @@ echo "Mean correlation of Life Expectancy with Cantril ladder is ${corr_life_exp
 # echo "Most predictive mean correlation with the Cantril ladder is Population (r = -0.835)"
 
 
-# Find the value with maximum absolute value using awk script
+# Find the correlation value with maximum absolute value using awk script
 echo -e "Homicide Rate\t$corr_homicide_rate\nGDP\t$corr_gdp\nPopulation\t$corr_population\nLife Expectancy\t${corr_life_exp}\n" |
 awk -F'\t' '{
     if ($2 < 0) {
@@ -119,6 +131,7 @@ awk -F'\t' '{
   }'
 
 
+# remove tmp files
 if test -f $tmpfile1 ; then
     rm $tmpfile1
 fi
